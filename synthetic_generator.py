@@ -14,7 +14,7 @@ def args_parser():
 
 
 class sample:
-    def __init__(self, n_sample=1000, n_gauss=2, bad_ratio=0.2, mean=None, cov=None,):
+    def __init__(self, n_sample=1000, n_gauss=2, bad_ratio=0.2, mean=None, cov=None):
         # self.mean = mean
         # self.cov = cov
         self.n_sample = int(n_sample)
@@ -98,7 +98,6 @@ def main():
 
     test = sample(n_gauss=5)
     test.iteration()
-
 
 if __name__ == "__main__": 
     main()
