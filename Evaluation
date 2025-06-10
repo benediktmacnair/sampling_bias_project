@@ -105,7 +105,7 @@ class bayesianMetric(Evaluation):
            y_proba_rej: np.ndarray,
            rejects_prior: np.ndarray,
            acc_rate: List[float],
-           seed: int,
+           seed: Union[None, int] = None,
            min_iterations: int = 100,
            max_iterations: int = 10000,
            epsilon: float = 1e-4,
@@ -148,7 +148,8 @@ class bayesianMetric(Evaluation):
         float
             Estimated metric value for BE.
         '''
-        np.random.seed(seed=seed)
+        if seed is not None:
+            np.random.seed(seed=seed)
 
         # Merge predictions of accepts and rejects
         y_pred_combined = np.concatenate([y_pred_acc, y_pred_rej])
