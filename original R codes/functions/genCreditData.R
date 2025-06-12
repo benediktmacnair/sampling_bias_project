@@ -221,7 +221,6 @@ genCreditData <- function(n                = 1000,
     combo_vals      <- as.numeric(unlist(strsplit(combo, split = '')))
     combo_idx       <- apply(dummy, 1, function(x) all(x == combo_vals))
     combo_count     <- sum(combo_idx)
-    
     if (sum(combo_vals) > 0 & k_bin != 0) {
       combo_bad_ratio <- mean(bin_bad_ratio * combo_vals)
     }else{
