@@ -5,3 +5,6 @@ original R codes/
 data generator/
 synthetic_generator.py
 test.py
+basl/
+.pkl
+.DS_Store

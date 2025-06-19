@@ -1,10 +1,21 @@
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pickle
 import data_generation_simplified as data
+from acceptance_loop import AcceptanceLoop
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from basl.Evaluation import Metric, AUC, BS, PAUC, ABR, Evaluation, bayesianMetric
+from basl.reject_inference_14june import RejectInference, BiasAwareSelfLearning
+import random
 
+######### INITIAL POPULATION ########
+
+
+# generate data
 res = data.DataGenerator(
     n = 100,
     bad_ratio = 0.7,
@@ -19,119 +30,78 @@ res = data.DataGenerator(
 )
 res.generate()
 
+# extract initial population
 init_population = res.data
+init_population.drop(columns=['B1'], inplace=True)
+init_population['BAD'].map({'BAD':1, 'GOOD':0})
 
 top_percent = 0.2 
 
+# accept applicants using a business rule on X1
 # Identify indices of the top `top_percent` based on 'X1'
-threshold = init_population.iloc[:, 0].quantile(1 - top_percent)
-accepts_ind = init_population.index[init_population.iloc[:, 0] >= threshold]
+accepts_ind = init_population.index[init_population['X1'] >= init_population['X1'].quantile(1 - top_percent)]
 
 # Select rows for current accepts and rejects
-current_accepts = init_population.loc[accepts_ind]
-current_rejects = init_population.drop(accepts_ind)
+init_accepts = init_population.loc[accepts_ind]
+init_rejects = init_population.drop(accepts_ind)
 
-if (current_accepts['BAD'] == 'BAD').sum() < 4:
+
+
+# check if both classes are present
+if (init_accepts['BAD'] == 'BAD').sum() < 4:
     # Adjust indices to ensure at least 4 'BAD' cases
+    # threshold = init_population['X1'].quantile(1 - top_percent)
+    # accepts_ind = init_population.index[init_population['X1'] >= threshold].tolist()
+    # main_part = accepts_ind[:len(accepts_ind) - 4]
+    # first_four = list(init_population.index[:4])
+    # accepts_ind = main_part + first_four
 
-    '''
+    top_indices = init_population.index[init_population['X1'] >= init_population['X1'].quantile(1 - top_percent)]
+    accepts_ind = list(top_indices[:len(accepts_ind) - 4]) + list(init_population.index[:4])
+    init_accepts = init_population.loc[accepts_ind]
+    init_rejects = init_population.drop(accepts_ind)
     
-    MISSING CODE!!
-    
-    '''
 
-    current_accepts = init_population.loc[accepts_ind]
-    current_rejects = init_population.drop(accepts_ind)
+sns.kdeplot(init_accepts.iloc[:, 0], fill= True, color='lime', label='Accepts', alpha=0.1)
+sns.kdeplot(init_rejects.iloc[:, 0], fill= True, color='orange', label='Rejects', alpha=0.1)
+sns.kdeplot(init_population.iloc[:, 0], fill= True, color='blue', label='Initial Population', alpha=0.1)
+plt.xlabel('Population of Feature X1')
+plt.title('Bias in Data Population')
+plt.legend()
+plt.show()
+plt.close()
 
+
+
+######### HOLDOUT POPULATION ########
 
 holdout_sample = 3000
 
+# generate holdout data
 holdout = data.DataGenerator(n = holdout_sample, replicate = res, seed = 99999)
 holdout.generate()
 holdout_population = holdout.data
-x_holdout = holdout_population.drop(columns=['BAD'])
-y_holdout = holdout_population['BAD']
+
+# x_holdout = holdout_population.drop(columns=['BAD', 'B1'])
+# y_holdout = holdout_population['BAD'].map({"BAD":1, "GOOD":0})
+
 
 #######################
 #
 # ACCEPTANCE LOOP
 # 
 #######################
-n_iter = 300
 
-stats = {
-    'generation': range(1, n_iter + 1),
-    'sample_size': None,
-    'accept_ratio': None,
-    'bad_ratio_accepts': None,
-    'bad_ratio_rejects': None,
-    'bad_ratio_unbiased': None,
-    'auc_accepts': None,
-    'auc_unbiased': None,
-    'auc_inference': None
-}
-stats_list = []
+acceptance_loop = AcceptanceLoop(
+    n_iter = 5,
+    current_accepts= init_accepts,
+    current_rejects= init_rejects,
+    holdout= holdout_population,
+    res=res,
+    top_percent= top_percent)
 
-for i in range (n_iter):
-    
-    if i % 10 == 0:
-        print("Iteration {} of {}, : {} accepts and {} rejects".format(i, n_iter, len(current_accepts), len(current_rejects)))
-
-    stats['sample_size'] = len(current_accepts) + len(current_rejects)
-    stats['accept_ratio'] = len(current_accepts) / stats['sample_size']
-    stats['bad_ratio_accepts'] = (current_accepts['BAD'] == 'BAD').mean()
-    stats['bad_ratio_rejects'] = (current_rejects['BAD'] == 'BAD').mean()
-    stats['bad_ratio_unbiased'] = stats['bad_ratio_accepts'] * stats['accept_ratio'] + stats['bad_ratio_rejects'] * (1 - stats['accept_ratio'])
-
-    
-
-    new_applicants = data.DataGenerator(n = 100, replicate = res, seed = 77 + i)
-    new_applicants.generate()
-    new_applicants = new_applicants.data
-
-    x_new_applicants = new_applicants.drop(columns=['BAD'])
-    y_new_applicants = new_applicants['BAD']
-
-    ##### ACCEPTS-BASED SCORECARD
-    '''
-    y_accepts_binary 
-    '''
-    x_accepts = current_accepts.drop(columns=['BAD'])
-    y_accepts = current_accepts['BAD']
-    y_accepts_binary = y_accepts.map({"BAD":1, "GOOD":0})
-
-    clf = LogisticRegression()
-    clf.fit(x_accepts, y_accepts_binary)
-
-    preds = clf.predict_proba(x_new_applicants)
-    holdout_preds = clf.predict_proba(x_holdout)
-
-    # preds = clf.predict(x_new_applicants)
-    # holdout_preds = clf.predict(x_holdout)
-
-    stats['auc_accepts'] = roc_auc_score(holdout_preds, y_holdout.map({"BAD":1, "GOOD":0}))
+stats_list = acceptance_loop.run()
 
 
-    ##### ORACLE SCORECARD
-    combined_data = pd.concat([current_accepts, current_rejects], axis=0, ignore_index=True)
-
-    x_combined = combined_data.drop(columns=['BAD'])
-    y_combined = combined_data['BAD']
-    y_combined_binary = (y_combined == 'GOOD').astype(int)    
-    
-    clf_unbiased = LogisticRegression()
-    clf_unbiased.fit(x_combined, y_combined_binary)
-
-    clf_unbiased.fit(x_combined, y_combined_binary)
-
-    preds_unbiased = clf_unbiased.predict(x_new_applicants)
-    holdout_preds_unbiased = clf_unbiased.predict(x_holdout)
-
-    stats['auc_unbiased'] = roc_auc_score(holdout_preds_unbiased, y_holdout.map({"BAD":1, "GOOD":0}))
-
-    stats_list.append(stats)
-
-print("Hallo")
-
-
-
+with open('stats_list.pkl', 'wb') as f:
+    pickle.dump(stats_list, f)
