@@ -13,9 +13,15 @@ from Evaluation import Metric, AUC, BS, PAUC, ABR, Evaluation, bayesianMetric
 from reject_inference import RejectInference, BiasAwareSelfLearning
 import random
 from scorecard_selection import ScorecardSelector
+from code_02_simulation_results import SimulationResults
+
+#######################
+#
+#    Data Preparing
+#
+#######################
 
 ######### INITIAL POPULATION ########
-
 
 # generate data
 res = data.DataGenerator(
@@ -91,6 +97,26 @@ holdout_population = holdout.data
 # x_holdout = holdout_population.drop(columns=['BAD', 'B1'])
 # y_holdout = holdout_population['BAD'].map({"BAD":1, "GOOD":0})
 
+######### Visualize Data Set #########
+fig, ax = plt.subplots(1,3, figsize=(18, 6))
+ax[0].scatter(holdout_population['X1'], holdout_population['X2'], c=holdout_population['BAD'].map({'BAD':1, 'GOOD':0}), cmap='plasma', alpha=0.6, s=50, label="BAD")
+ax[0].set_title('Scatter Plot for Holdout Population')
+ax[0].legend()
+ax[0].grid()
+
+ax[1].scatter(init_population['X1'], init_population['X2'], c=init_population['BAD'].map({'BAD':1, 'GOOD':0}), cmap='plasma', alpha=0.6, s=50, label="BAD")
+ax[1].set_title('Scatter Plot for Initial Population')
+ax[1].legend()
+ax[1].grid()
+
+ax[2].scatter(init_accepts['X1'], init_accepts['X2'], c=init_accepts['BAD'].map({'BAD':1, 'GOOD':0}), cmap='plasma', alpha=0.6, s=50, label="BAD")
+ax[2].set_title('Scatter Plot for Initial Accepts')
+ax[2].legend()
+ax[2].grid()
+
+plt.tight_layout()
+plt.show()
+
 
 #######################
 #
@@ -140,3 +166,58 @@ eval_scores, models = selector.run_selection()
 
 with open('eval_scores.pkl', 'wb') as f:
     pickle.dump(eval_scores, f)
+
+#################################################
+#
+# Visualize the Impact of Bias in Acceptance Loop
+#
+#################################################
+
+#### Impact of Bias on Training ####
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(6,5))
+plt.plot(stats_list.index, stats_list["abr_inference"], label="BASL", color='orange')
+plt.plot(stats_list.index, stats_list["abr_unbiased"], label="Oracle", color='blue')
+plt.plot(stats_list.index, stats_list["abr_accepts"], label="Accepts", color='lime')
+plt.legend()
+plt.title('Impact of Bias on Training')
+plt.xlabel('Acceptance Loop Iteration')
+plt.ylabel('ABR on Holdout Sample')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+#### Impact of Bias on Evaluation ####
+eval_stats = acceptance_loop.eval_stats_list
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(6,5))
+plt.plot(eval_stats.index, eval_stats["abr_bayesian_eval"], label="BE", color='orange')
+plt.plot(eval_stats.index, eval_stats["abr_oracle_eval"], label="Oracle", color='blue')
+plt.plot(eval_stats.index, eval_stats["abr_accept_eval"], label="Accepts", color='lime')
+plt.legend()
+plt.title('Impact of Bias on Evaluation')
+plt.xlabel('Acceptance Loop Iteration')
+plt.ylabel('ABR on Holdout Sample')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+################################
+#
+# Visualize Distribution of data
+#
+################################
+
+holdout = holdout_population.drop(columns=['B1'])
+curr_accepts = acceptance_loop.current_accepts
+curr_rejects = acceptance_loop.current_rejects
+
+stat_list = acceptance_loop.stats_list
+eval_list = eval_scores
+
+test = SimulationResults(holdout, curr_accepts, curr_rejects, stat_list, eval_list)
+test.feature_density()
+test.target_density()
+test.pairs_plot('holdouts')
+test.basl_gain()
+test.be_gain()
