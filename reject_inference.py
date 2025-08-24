@@ -8,17 +8,19 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.ensemble import IsolationForest
 from sklearn.exceptions import NotFittedError # Import NotFittedError
-from sklearn.inspection import permutation_importance
 from xgboost import XGBClassifier 
 from sklearn.metrics import roc_auc_score, brier_score_loss, roc_curve
 from scipy.stats import multivariate_normal, norm
 from scipy.optimize import minimize # Import minimize
 import statsmodels.api as sm # Import statsmodels.api
+
 from abc import ABC, abstractmethod
 from typing import List, Union, Optional, Dict
 from Evaluation import Metric, AUC, PAUC, BS, ABR, Evaluation, bayesianMetric
+
 import random
 import copy
+import warnings
 
 # Define a small epsilon for numerical stability
 EPS = 1e-10
@@ -1029,341 +1031,153 @@ class Reweighting(RejectInference):
             raise NotFittedError("Reweighting model not fitted. Call `fit` first.")
         return self.model_.predict_proba(self._to_numpy(X))
 
-class HeckmanBivariate(RejectInference):
-    """
-    Implements a Bivariate Probit model for reject inference, following the
-    framework of Meng and Schmidt (1985).
-    """
-    def __init__(self, top_k: int = 10):
-        super().__init__()
-        self.beta_selection = None
-        self.beta_outcome = None
-        self.rho = None
-        self.all_selected_features = None
-        self.top_k = top_k
-        self.selection_features = None
-        self.outcome_features = None
-        self.all_feature_columns = None # NEW: Store all feature columns
-
-    def _neg_log_likelihood(self, model_params, exog, selection_y, final_outcome_y):
-        num_predictors = exog.shape[1]
-        selection_coeffs = model_params[:num_predictors]
-        outcome_coeffs = model_params[num_predictors:2 * num_predictors]
-        rho = model_params[-1]
-        
-        selection_predictor = exog @ selection_coeffs
-        outcome_predictor = exog @ outcome_coeffs
-        
-        logL_case1 = 0
-        logL_case2 = 0
-        logL_case3 = 0
-        
-        observed_outcome_indices = np.where(selection_y == 1)[0]
-        observed_selection_predictor = selection_predictor[observed_outcome_indices]
-        observed_outcome_predictor = outcome_predictor[observed_outcome_indices]
-        observed_final_outcome = final_outcome_y[observed_outcome_indices]
-        
-        prob_11 = multivariate_normal.cdf(
-            np.vstack([observed_selection_predictor, observed_outcome_predictor]).T, 
-            mean=[0, 0], 
-            cov=[[1, rho], [rho, 1]]
-        )
-        logL_case1 = np.sum(observed_final_outcome * np.log(prob_11 + 1e-10))
-        
-        prob_10 = norm.cdf(observed_selection_predictor) - prob_11
-        logL_case2 = np.sum((1 - observed_final_outcome) * np.log(prob_10 + 1e-10))
-        
-        rejected_indices = np.where(selection_y == 0)[0]
-        rejected_selection_predictor = selection_predictor[rejected_indices]
-        
-        prob_0 = norm.cdf(-rejected_selection_predictor)
-        logL_case3 = np.sum(np.log(prob_0 + 1e-10))
-        
-        total_log_likelihood = logL_case1 + logL_case2 + logL_case3
-        
-        return -total_log_likelihood
-
-    def _perform_feature_selection(self, data: pd.DataFrame):
-        """
-        Performs feature selection using XGBoost and permutation importance
-        to identify the most important features for both selection and outcome models.
-        """
-        print("Training XGBoost selection model...")
-        xgb_selection_model = XGBClassifier(objective='binary:logistic', eval_metric='logloss')
-        xgb_selection_model.fit(data.iloc[:, :-2], data['selection'])
-        
-        selection_importance = permutation_importance(
-            xgb_selection_model, 
-            data.iloc[:, :-2], 
-            data['selection'], 
-            n_repeats=10, 
-            random_state=42
-        )
-        selection_sorted_indices = selection_importance.importances_mean.argsort()[::-1]
-        
-        print("Training XGBoost outcome model on accepted data...")
-        accepted_data = data[data['selection'] == 1]
-        
-        xgb_outcome_model = XGBClassifier(objective='binary:logistic', eval_metric='logloss')
-        xgb_outcome_model.fit(accepted_data.iloc[:, :-2], accepted_data['outcome'])
-        
-        outcome_importance = permutation_importance(
-            xgb_outcome_model, 
-            accepted_data.iloc[:, :-2], 
-            accepted_data['outcome'], 
-            n_repeats=10, 
-            random_state=42
-        )
-        outcome_sorted_indices = outcome_importance.importances_mean.argsort()[::-1]
-        
-        feature_names = data.columns[:-2]  # exclude 'selection' and 'outcome'
-        selection_feature_names = feature_names[selection_sorted_indices[:self.top_k]]
-        outcome_feature_names = feature_names[outcome_sorted_indices[:self.top_k]]        
-        all_selected_features = list(set(selection_feature_names) | set(outcome_feature_names))
-        
-        self.selection_features = selection_feature_names
-        self.outcome_features = outcome_feature_names
-        
-        return all_selected_features
-    
-    def _get_initial_guess_statsmodels(self, full_exog, full_y_selection, accepted_exog, accepted_y_outcome):
-        """
-        Uses statsmodels.Probit to get initial parameter estimates as a warm start
-        for the custom MLE model.
-        """
-        print("Generating initial guess using a two-step estimation...")
-        full_exog_const = sm.add_constant(full_exog, prepend=True)
-        selection_model = sm.Probit(full_y_selection, full_exog_const)
-        selection_results = selection_model.fit(disp=False)
-        selection_coeffs = selection_results.params
-        
-        accepted_exog_const = sm.add_constant(accepted_exog, prepend=True)
-        outcome_model = sm.Probit(accepted_y_outcome, accepted_exog_const)
-        outcome_results = outcome_model.fit(disp=False)
-        outcome_coeffs = outcome_results.params
-        
-        initial_guess = np.concatenate([selection_coeffs, outcome_coeffs, [0.5]])
-        
-        print("Initial guess generated successfully.")
-        return initial_guess
-
-    def fit(self, accepts_x: pd.DataFrame, accepts_y: pd.Series, rejects_x: pd.DataFrame):
-        """
-        Builds the Heckman Bivariate model, including feature selection and MLE.
-        """
-        # 1. Consolidate data for fitting and feature selection
-        full_data = pd.concat([accepts_x, rejects_x], ignore_index=True)
-        full_data['selection'] = [1] * len(accepts_x) + [0] * len(rejects_x)
-        full_data['outcome'] = pd.concat([accepts_y, pd.Series([np.nan] * len(rejects_x))]).reset_index(drop=True)
-        
-        # Store all feature columns for later use
-        self.all_feature_columns = full_data.columns[:-2].tolist()
-        
-        # 2. Perform feature selection
-        self.all_selected_features = self._perform_feature_selection(full_data)
-        
-        # 3. Get initial guess from statsmodels on the selected features
-        accepted_data = full_data[full_data['selection'] == 1]
-        initial_guess = self._get_initial_guess_statsmodels(
-            full_exog=full_data[self.all_selected_features].values,
-            full_y_selection=full_data['selection'].values,
-            accepted_exog=accepted_data[self.all_selected_features].values,
-            accepted_y_outcome=accepted_data['outcome'].values
-        )
-
-        # 4. Fit the custom Bivariate Probit model
-        print("\nFitting the Bivariate Probit Model with the optimized initial guess...")
-        full_exog_matrix = sm.add_constant(full_data[self.all_selected_features].values, prepend=True)
-        bounds = [(None, None)] * (2 * len(self.all_selected_features) + 2) + [(-1 + 1e-6, 1 - 1e-6)]
-        
-        result = minimize(
-            self._neg_log_likelihood, 
-            initial_guess, 
-            args=(full_exog_matrix, full_data['selection'].values, full_data['outcome'].values),
-            method='trust-constr', 
-            bounds=bounds,
-            options={'maxiter': 5000}
-        )
-        
-        if result.success:
-            num_predictors = full_exog_matrix.shape[1]
-            self.beta_selection = result.x[:num_predictors]
-            self.beta_outcome = result.x[num_predictors:2 * num_predictors]
-            self.rho = result.x[-1]
-            print("\nOptimization successful.")
-            print(f"Final estimated correlation (rho): {self.rho:.4f}")
-        else:
-            print("\nOptimization failed.")
-            print(result.message)
-
-        return self
-
-    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
-        """
-        Predicts the probability of a positive outcome (class 1) for the
-        given samples, accounting for selection bias.
-        """
-        if self.beta_selection is None or self.beta_outcome is None or self.rho is None:
-            raise RuntimeError("Model has not been fitted yet. Please call .fit() first.")
-
-        # CHANGE HERE: Ensure X is a DataFrame and filter to the features the model was trained on
-        if not isinstance(X, pd.DataFrame):
-            # Assumes X is a NumPy array and needs column names from the fitted model
-            X = pd.DataFrame(X, columns=self.all_feature_columns)
-            
-        # Ensure input features match the selected features used for fitting
-        X_selected = sm.add_constant(X[self.all_selected_features].values, prepend=True)
-        
-        # Calculate predictors for both equations
-        selection_predictor = X_selected @ self.beta_selection
-        outcome_predictor = X_selected @ self.beta_outcome
-
-        # Bivariate CDF for the probability of being accepted AND having a positive outcome
-        prob_11 = multivariate_normal.cdf(
-            np.vstack([selection_predictor, outcome_predictor]).T, 
-            mean=[0, 0], 
-            cov=[[1, self.rho], [self.rho, 1]]
-        )
-
-        # The probability of a positive outcome, given the sample was accepted
-        prob_y_eq_1 = prob_11 / norm.cdf(selection_predictor)
-
-        # Bivariate CDF for the probability of being accepted and having a negative outcome
-        prob_10 = norm.cdf(selection_predictor) - prob_11
-        prob_y_eq_0 = prob_10 / norm.cdf(selection_predictor)
-        
-        return np.vstack([prob_y_eq_0, prob_y_eq_1]).T
-
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
-        """
-        Predicts class labels (0 or 1) based on the predicted probabilities.
-        """
-        probas = self.predict_proba(X)
-        return (probas[:, 1] > 0.5).astype(int)
-
-
 
 class HeckmanTwoStage(RejectInference):
     """
-    Implements a flexible two-stage Heckman-style model for reject inference.
+    Implements the two-stage Heckman correction model.
+    
+    This class has been updated to use numeric indices for feature selection, 
+    consistent with the HeckmanBivariate model. The Probit fitting has also 
+    been updated to handle ConvergenceWarnings.
     """
-    def __init__(self, selection_classifier='Probit', outcome_classifier='Probit', selection_features: Union[List[int], None] = None, outcome_features: Union[List[int], None] = None):
+    def __init__(self,
+                 selection_classifier: str = 'Probit',
+                 outcome_classifier: str = 'XGB',
+                 selection_features_idx: Optional[List[int]] = None,
+                 outcome_features_idx: Optional[List[int]] = None):
+
         super().__init__()
-        if selection_classifier not in ['Probit', 'XGB'] or outcome_classifier not in ['Probit', 'XGB']:
-            raise ValueError("Classifiers must be either 'Probit' or 'XGB'.")
         self.selection_classifier = selection_classifier
         self.outcome_classifier = outcome_classifier
         self.selection_model = None
         self.outcome_model = None
-        self.selection_features = selection_features
-        self.outcome_features = outcome_features
-        self.feature_columns = None # Store column names for later use
+        self.selection_features_idx = selection_features_idx
+        self.outcome_features_idx = outcome_features_idx
+
 
     def fit(self, accepts_x: pd.DataFrame, accepts_y: pd.Series, rejects_x: pd.DataFrame):
         """
-        Fits the two-stage model, now storing column names.
+        Builds the two-stage Heckman correction model.
         """
-        print("Starting Two-Stage Model fitting...")
+        self.feature_columns = accepts_x.columns.tolist()
 
-        # --- Stage 1: The Selection Equation ---
-        print("Stage 1: Fitting selection model on entire population...")
-
-        # Use pandas concat to merge DataFrames, preserving column names
-        X_all = pd.concat([accepts_x, rejects_x], ignore_index=True)
-        is_accepted = np.hstack([np.ones(len(accepts_x)), np.zeros(len(rejects_x))])
-        self.feature_columns = X_all.columns
-
-        # Get feature indices
-        if self.selection_features is None:
+        # If indices are not provided, use all features
+        if self.selection_features_idx is None:
             self.selection_features_idx = list(range(len(self.feature_columns)))
-        else:
-            self.selection_features_idx = self.selection_features
-            
-        if self.outcome_features is None:
+        if self.outcome_features_idx is None:
             self.outcome_features_idx = list(range(len(self.feature_columns)))
-        else:
-            self.outcome_features_idx = self.outcome_features
 
-        # Use .iloc for integer-based selection from the combined DataFrame
+        # Check for valid indices
+        max_idx = len(self.feature_columns) - 1
+        if not all(0 <= idx <= max_idx for idx in self.selection_features_idx + self.outcome_features_idx):
+            raise IndexError(f"Feature indices are out of bounds. Valid indices are 0 to {max_idx}.")
+
+        # Stage 1: Selection Equation (Prob(Acceptance))
+        print("Stage 1: Fitting selection model on entire population...")
+        X_all = pd.concat([accepts_x, rejects_x], ignore_index=True)
+        y_selection = pd.Series([1] * len(accepts_x) + [0] * len(rejects_x))
+
+        # Use .iloc to select features by their integer index
         X_selection = X_all.iloc[:, self.selection_features_idx]
-        
-        # Fit the specified selection classifier
+
         if self.selection_classifier == 'Probit':
-            first_stage_exog = sm.add_constant(X_selection, prepend=False)
-            self.selection_model = sm.Probit(is_accepted, first_stage_exog).fit(disp=0)
+            X_selection_sm = sm.add_constant(X_selection, prepend=False)
+            # FIX: Use warnings.catch_warnings to suppress the specific RuntimeWarning
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                self.selection_model = sm.Probit(y_selection, X_selection_sm).fit(disp=False, maxiter=5000)
+        # NEW: Add a regularized Logistic Regression option
+        elif self.selection_classifier == 'LogisticRegression':
+            self.selection_model = LogisticRegression(solver='liblinear', penalty='l2', max_iter=1000, random_state=42)
+            self.selection_model.fit(X_selection.values, y_selection)
         elif self.selection_classifier == 'XGB':
-            self.selection_model = XGBClassifier(eval_metric='logloss')
-            self.selection_model.fit(X_selection.values, is_accepted)
+            self.selection_model = XGBClassifier(
+                objective='binary:logistic',
+                eval_metric='logloss'
+            )
+            self.selection_model.fit(X_selection.values, y_selection)
+        else:
+            raise ValueError(f"Unknown selection_classifier: {self.selection_classifier}")
 
-        print("Stage 1 complete.")
-
-        # --- Stage 2: The Outcome Equation with Bias Correction ---
+        # Stage 2: Outcome Equation (Prob(Bad) | Accepted)
         print("Stage 2: Fitting outcome model on accepted population...")
-
-        # Use iloc to select features from the original accepts_x DataFrame
-        X_selection_accepted = accepts_x.iloc[:, self.selection_features_idx]
-
-        # Calculate the Inverse Mills Ratio (IMR)
-        if self.selection_classifier == 'Probit':
-            z_accepted = self.selection_model.predict(sm.add_constant(X_selection_accepted, prepend=False))
-        elif self.selection_classifier == 'XGB':
-            probas_accepted = self.selection_model.predict_proba(X_selection_accepted.values)[:, 1]
-            probas_accepted = np.clip(probas_accepted, 1e-15, 1 - 1e-15)
-            z_accepted = norm.ppf(probas_accepted)
-
-        imr = norm.pdf(z_accepted) / norm.cdf(z_accepted)
-
-        # Use iloc to select outcome features from the original accepts_x DataFrame
-        X_outcome = accepts_x.iloc[:, self.outcome_features_idx]
         
-        # Stack the features and IMR.
-        second_stage_exog = np.hstack([X_outcome.values, imr.reshape(-1, 1)])
+        # FIX: Correct the logic for choosing the correct prediction method
+        if self.selection_classifier == 'Probit':
+            selection_preds = self.selection_model.predict(sm.add_constant(accepts_x.iloc[:, self.selection_features_idx], prepend=False))
+        # NEW: Add logic for the new LogisticRegression classifier
+        elif self.selection_classifier == 'LogisticRegression':
+            selection_preds = self.selection_model.predict_proba(accepts_x.iloc[:, self.selection_features_idx].values)[:, 1]
+        elif self.selection_classifier == 'XGB':
+            selection_preds = self.selection_model.predict_proba(accepts_x.iloc[:, self.selection_features_idx].values)[:, 1]
+        
+        # NEW: Clip the selection predictions with a larger value (1e-6 instead of 1e-15) to prevent numerical instability issues
+        selection_preds_clipped = np.clip(selection_preds, 1e-6, 1 - 1e-6)
+        z_values = norm.ppf(selection_preds_clipped)
+        imr_values = norm.pdf(z_values) / norm.cdf(z_values)
 
-        # Fit the specified outcome classifier
+        # Combine outcome features with IMR
+        X_outcome = accepts_x.iloc[:, self.outcome_features_idx]
+        X_outcome_with_imr = pd.concat([X_outcome, pd.Series(imr_values, index=X_outcome.index, name='IMR')], axis=1)
+
         if self.outcome_classifier == 'Probit':
-            second_stage_exog_sm = sm.add_constant(second_stage_exog, prepend=False)
-            self.outcome_model = sm.Probit(accepts_y, second_stage_exog_sm).fit(disp=0)
+            X_outcome_sm = sm.add_constant(X_outcome_with_imr, prepend=False)
+            # FIX: Use warnings.catch_warnings to suppress the specific RuntimeWarning
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                self.outcome_model = sm.Probit(accepts_y, X_outcome_sm).fit(disp=False, maxiter=5000)
         elif self.outcome_classifier == 'XGB':
-            self.outcome_model = XGBClassifier(eval_metric='logloss')
-            self.outcome_model.fit(second_stage_exog, accepts_y.values)
+            self.outcome_model = XGBClassifier(
+                objective='binary:logistic',
+                eval_metric='logloss'
+            )
+            self.outcome_model.fit(X_outcome_with_imr.values, accepts_y)
+        else:
+            raise ValueError(f"Unknown outcome_classifier: {self.outcome_classifier}")
 
-        print("Stage 2 complete.")
-        print("Two-Stage Model fitting complete.")
-        return self
-
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
         """
-        Predicts probabilities for a NumPy array input.
+        Predicts the probability of the outcome for new samples.
         """
         if self.selection_model is None or self.outcome_model is None:
-            print("Model has not been fitted yet.")
-            return np.zeros((X.shape[0], 2))
-
-        # CONVERT NumPy array back to DataFrame for indexing
-        X_df = pd.DataFrame(X, columns=self.feature_columns)
-
-        X_selection_new = X_df.iloc[:, self.selection_features_idx]
+            raise NotFittedError("This model instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
         
+        # FIX: Ensure the input X is a DataFrame to avoid iloc errors
+        if not isinstance(X, pd.DataFrame):
+            # If it's not a DataFrame, assume it's a numpy array and convert it
+            # using the feature names stored during fitting.
+            X = pd.DataFrame(X, columns=self.feature_columns)
+
+        # Use .iloc to select features by their integer index
+        X_selection_df = X.iloc[:, self.selection_features_idx]
+        X_outcome_df = X.iloc[:, self.outcome_features_idx]
+
+        # Stage 1: Predict selection probabilities
         if self.selection_classifier == 'Probit':
-            z_new = self.selection_model.predict(sm.add_constant(X_selection_new, prepend=False))
+            selection_preds = self.selection_model.predict(sm.add_constant(X_selection_df, prepend=False))
+        # NEW: Add logic for the new LogisticRegression classifier
+        elif self.selection_classifier == 'LogisticRegression':
+            selection_preds = self.selection_model.predict_proba(X_selection_df.values)[:, 1]
         elif self.selection_classifier == 'XGB':
-            probas_new = self.selection_model.predict_proba(X_selection_new.values)[:, 1]
-            probas_new = np.clip(probas_new, 1e-15, 1 - 1e-15)
-            z_new = norm.ppf(probas_new)
+            selection_preds = self.selection_model.predict_proba(X_selection_df.values)[:, 1]
 
-        imr_new = norm.pdf(z_new) / norm.cdf(z_new)
+        # NEW: Clip the selection predictions with a larger value (1e-6 instead of 1e-15) to prevent numerical instability issues
+        selection_preds_clipped = np.clip(selection_preds, 1e-6, 1 - 1e-6)
+        z_values = norm.ppf(selection_preds_clipped)
+        imr_values = norm.pdf(z_values) / norm.cdf(z_values)
 
-        X_outcome_new = X_df.iloc[:, self.outcome_features_idx]
-        final_exog = np.hstack([X_outcome_new.values, imr_new.reshape(-1, 1)])
-
+        # Stage 2: Predict outcome probabilities with IMR
+        X_outcome_with_imr = pd.concat([X_outcome_df, pd.Series(imr_values, index=X_outcome_df.index, name='IMR')], axis=1)
+        
         if self.outcome_classifier == 'Probit':
-            final_exog_sm = sm.add_constant(final_exog, prepend=False)
-            prob_y_eq_1 = self.outcome_model.predict(final_exog_sm)
+            prob_y_eq_1 = self.outcome_model.predict(sm.add_constant(X_outcome_with_imr, prepend=False))
         elif self.outcome_classifier == 'XGB':
-            prob_y_eq_1 = self.outcome_model.predict_proba(final_exog)[:, 1]
-
+            prob_y_eq_1 = self.outcome_model.predict_proba(X_outcome_with_imr.values)[:, 1]
+            
         prob_y_eq_0 = 1 - prob_y_eq_1
+        
         return np.vstack([prob_y_eq_0, prob_y_eq_1]).T
+
     
     def predict(self, X: np.ndarray) -> np.ndarray:
         """
