@@ -8,7 +8,7 @@ The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecar
 
 - `original R codes`: contains original R codes in of the paper
 - `Python codes`:
-    - **data_generator_simplify.py**: simulation data generator.
+    - **data_generator_simplified.py**: simulation data generator.
     - **reject_inference.py**: code for BASL and benchmark methods.
     - **Evaluation.py**: code for BE and evaluation metrics callable by benchmarks precessed in experiments.
     - **acceptance_loop**: simulation framework for experiments, which comparing BASL and BE with benchmarks in simulated credit scoring situation.
@@ -39,6 +39,30 @@ The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecar
 ### Code examples for running our Python codes:
 The following files contain the implementation of the key modules and a comparison of the results from various models:
 
+- **data_generator_simplified.py**:
+The Data Generator creates synthetic applicant datasets for credit scoring research with controlled bias. It simulates continuous and binary features, assigns labels (GOOD/BAD) according to a specified bad rate, and allows adding noise and nonlinear transformations.
+A generator is initialized with the desired number of applicants (n), the number of continuous (k_con) and binary (k_bin) features, and the target bad rate (bad_ratio). Additional parameters control the mean differences, variances, and probabilities that distinguish good and bad applicants, as well as random seeds for reproducibility. Optionally, one generator can be replicated to ensure consistent distributions when creating a holdout sample.
+Calling .generate() produces a synthetic dataset stored in self.data, returned as a pandas DataFrame. The DataFrame contains one column for each continuous (X1, X2, …) and binary (B1, B2, …) feature, together with a BAD target column indicating whether an applicant is labeled "GOOD" or "BAD".
+
+```python
+from data_generation_simplified import DataGenerator
+
+# Initialize generator
+generator = DataGenerator(
+    n=1000,
+    k_con=5,
+    k_bin=2,
+    bad_ratio=0.3,
+    seed=42
+)
+
+# Generate synthetic dataset
+generator.generate()
+
+# Access generated data
+print(generator.data.head())
+```
+This example first creates a generator with 1,000 applicants, five continuous and two binary features, and a bad rate of 30%. After calling .generate(), the simulated dataset is accessible via generator.data. In practice, this dataset serves as the starting point for experiments and is later passed into the acceptance loop, which splits it into accepts, rejects, and a holdout sample for unbiased evaluation.
 - **Evaluation.py**:  
 This module provides an independent implementation of the **Bayesian Evaluation strategy**, which is designed to address sampling bias in model evaluation. For example, to calculate the **AUC metric** with the Bayesian strategy in a credit scoring scenario, you can use the following code. The example below uses `y_true_acc` (true targets for accepted applicants), `y_proba_acc` (predicted probabilities for accepted applicants), and `y_proba_rej` (predicted probabilities for rejected applicants).
 
