@@ -1,11 +1,28 @@
-# Repo Introduction
+# Fighting Sampling Bias: Advanced ML Tools for Reject Inference
 
-This repo provides tools and methodologies to address the issue of sample selection bias in credit risk modeling, based on the paper  
-**“Fighting sampling bias: A framework for training and evaluating credit scoring models.”**
+This repository contains the code and resources for a project developed as part of the **Applied Predictive Analysis** seminar at **Humboldt University** in the 2025 summer semester. Our objective is to **re-implement** the proposed methods and **replicate** the experimental results in Python from the paper [*Fighting sampling bias: A framework for training and evaluating credit scoring models( (Kozodoi, N., Lessmann, S., Alamgirf, M., Moreira-Matias, L., & Papakonstantinou, K., 2025)*](https://doi.org/10.1016/j.ejor.2025.01.040). 
 
----
+## File Structure
 
-## Environment Requirements
+The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecard training and a **Bayesian Evaluation (BE)** strategy for scorecard evaluation in sampling bias situation. A simulation framework is built to compare these two methods with benchmarks called **acceptance loop**. Following this main logic, we structure our repository as follow:
+
+- `original R codes`: contains original R codes in of the paper
+- `Python codes`:
+    - **data_generator_simplify.py**: simulation data generator.
+    - **reject_inference.py**: code for BASL and benchmark methods.
+    - **Evaluation.py**: code for BE and evaluation metrics callable by benchmarks precessed in experiments.
+    - **acceptance_loop**: simulation framework for experiments, which comparing BASL and BE with benchmarks in simulated credit scoring situation.
+    - **scorecard_selection.py**: implement a evaluation loop to comparing scorecards based on xgboots.
+    - **code_01_simulation_study.py**: our **main script** to implement experiments and generate plots.
+    - **code_02_simulation_study.py**: distribution plots generator.
+    - **benchmark_experiment.py**: conducts a benchmark experiment with synthetic data to compare BASL performance against benchmark models.
+- `simulation data`: contains randomly generated initial population and holdout population data with two continuous variables.
+- `results`: contains all plots we generated from Python codes.
+- `README.md`
+
+## How to run our code?
+
+### Environment Requirements
 
 - **Python Version**: Python 3.8 or higher is required. It is strongly recommended to use the version specified in the project's `requirements.txt` or documentation for compatibility.  
 - **Operating System**: The project is designed to be cross-platform and should work on Windows and macOS.  
@@ -19,42 +36,56 @@ This repo provides tools and methodologies to address the issue of sample select
   - `matplotlib`
   - `seaborn`
 
----
+### Code examples for running our Python codes:
+The following files contain the implementation of the key modules and a comparison of the results from various models:
 
-## Core Modules
+- **Evaluation.py**:  
+This module provides an independent implementation of the **Bayesian Evaluation strategy**, which is designed to address sampling bias in model evaluation. For example, to calculate the **AUC metric** with the Bayesian strategy in a credit scoring scenario, you can use the following code. The example below uses `y_true_acc` (true targets for accepted applicants), `y_proba_acc` (predicted probabilities for accepted applicants), and `y_proba_rej` (predicted probabilities for rejected applicants).
 
-- **`reject_inference.py`**  
+```python
+import numpy as np
+from Evaluation import Metric, AUC, Evaluation, bayesianMetric
+
+# Example Data (replace with your actual data)
+y_true_acc = np.array([1, 0, 1, 0, 1])                  # True targets for accepted applicants
+y_proba_acc = np.array([0.9, 0.2, 0.8, 0.3, 0.7])       # Predicted probabilities for accepted applicants
+y_proba_rej = np.array([0.1, 0.2, 0.3, 0.4, 0.5])       # Predicted probabilities for rejected applicants
+
+# Initialize the AUC metric
+auc_metric = AUC()
+
+# Use the Bayesian Metric class to calculate AUC
+bm_auc = bayesianMetric(auc_metric)
+
+# Calculate the AUC using the Bayesian Evaluation strategy
+auc_bm = bm_auc.BM(y_true_acc = y_true_acc,
+                   y_proba_acc = y_proba_acc,
+                   y_proba_rej = y_proba_rej,
+                   rejects_prior = y_proba_rej          # Can be a single float if rejects share the same rejection probability
+                   )
+print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
+```
+
+- **reject_inference.py**  
   Contains an abstract `RejectInference` class, from which several concrete model subclasses are derived.  
   It houses the Bias-Aware Self-Learning (BASL) method along with benchmark models like Label-All-Rejects-as-Bad, Heckman Two-Stage, Heckman Bivariate, and Reweighting.  
   Each model inherits a standardized `fit()`, `predict()`, and `predict_proba()` method.
 
-- **`acceptance_loop.py`**
+- **code_01_simulation_study.py**
 
-- **`evaluation.py`**
+- **code_02_simulation_results.py**
 
-- **`data_generation_simplified.py`**
+- **benchmark_experiment.py**  
+  
 
-- …etc
-
----
-
-## Implementation
-
-The following files contain the implementation of the modules and a comparison of the results from various models:
-
-- **`code_01_simulation_study.py`**
-- **`code_02_simulation_results.py`**
-- **`benchmark_experiment.py`**  
-  Conducts a benchmark experiment with synthetic data to compare BASL performance against benchmark models.
-
----
 
 ## Constraint
 
 - Figure **2.c** in the main paper cannot be replicated with the meta-parameters given in Appendix E.  
   Even when running the original R code with those parameters, the results deviate from the figure reported in the paper.
 
----
+
+## Contribution and Acknowledgments 
 
 ## Citation
 
