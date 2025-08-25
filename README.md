@@ -16,7 +16,6 @@ The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecar
     - **code_01_simulation_study.py**: our **main script** to implement experiments and generate plots.
     - **code_02_simulation_study.py**: distribution plots generator.
     - **benchmark_experiment.py**: conducts a benchmark experiment with synthetic data to compare BASL performance against benchmark models.
-- `simulation data`: contains randomly generated initial population and holdout population data with two continuous variables.
 - `results`: contains all plots we generated from Python codes.
 - `README.md`
 
@@ -39,30 +38,6 @@ The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecar
 ### Code examples for running our Python codes:
 The following files contain the implementation of the key modules and a comparison of the results from various models:
 
-- **data_generator_simplified.py**:
-The Data Generator creates synthetic applicant datasets for credit scoring research with controlled bias. It simulates continuous and binary features, assigns labels (GOOD/BAD) according to a specified bad rate, and allows adding noise and nonlinear transformations.
-A generator is initialized with the desired number of applicants (n), the number of continuous (k_con) and binary (k_bin) features, and the target bad rate (bad_ratio). Additional parameters control the mean differences, variances, and probabilities that distinguish good and bad applicants, as well as random seeds for reproducibility. Optionally, one generator can be replicated to ensure consistent distributions when creating a holdout sample.
-Calling .generate() produces a synthetic dataset stored in self.data, returned as a pandas DataFrame. The DataFrame contains one column for each continuous (X1, X2, …) and binary (B1, B2, …) feature, together with a BAD target column indicating whether an applicant is labeled "GOOD" or "BAD".
-
-```python
-from data_generation_simplified import DataGenerator
-
-# Initialize generator
-generator = DataGenerator(
-    n=1000,
-    k_con=5,
-    k_bin=2,
-    bad_ratio=0.3,
-    seed=42
-)
-
-# Generate synthetic dataset
-generator.generate()
-
-# Access generated data
-print(generator.data.head())
-```
-This example first creates a generator with 1,000 applicants, five continuous and two binary features, and a bad rate of 30%. After calling .generate(), the simulated dataset is accessible via generator.data. In practice, this dataset serves as the starting point for experiments and is later passed into the acceptance loop, which splits it into accepts, rejects, and a holdout sample for unbiased evaluation.
 - **Evaluation.py**:  
 This module provides an independent implementation of the **Bayesian Evaluation strategy**, which is designed to address sampling bias in model evaluation. For example, to calculate the **AUC metric** with the Bayesian strategy in a credit scoring scenario, you can use the following code. The example below uses `y_true_acc` (true targets for accepted applicants), `y_proba_acc` (predicted probabilities for accepted applicants), and `y_proba_rej` (predicted probabilities for rejected applicants).
 
@@ -95,8 +70,76 @@ print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
   It houses the Bias-Aware Self-Learning (BASL) method along with benchmark models like Label-All-Rejects-as-Bad, Heckman Two-Stage, Heckman Bivariate, and Reweighting.  
   Each model inherits a standardized `fit()`, `predict()`, and `predict_proba()` method.
 
-- **code_01_simulation_study.py**
+- **data_generator_simplified.py**:
+The Data Generator creates synthetic applicant datasets for credit scoring research with controlled bias. It simulates continuous and binary features, assigns labels (GOOD/BAD) according to a specified bad rate, and allows adding noise and nonlinear transformations.
+A generator is initialized with the desired number of applicants (n), the number of continuous (k_con) and binary (k_bin) features, and the target bad rate (bad_ratio). Additional parameters control the mean differences, variances, and probabilities that distinguish good and bad applicants, as well as random seeds for reproducibility. Optionally, one generator can be replicated to ensure consistent distributions when creating a holdout sample.
+Calling .generate() produces a synthetic dataset stored in self.data, returned as a pandas DataFrame. The DataFrame contains one column for each continuous (X1, X2, …) and binary (B1, B2, …) feature, together with a BAD target column indicating whether an applicant is labeled "GOOD" or "BAD".
 
+```python
+from data_generation_simplified import DataGenerator
+
+# Initialize generator
+generator = DataGenerator(
+    n=1000,
+    k_con=5,
+    k_bin=2,
+    bad_ratio=0.3,
+    seed=42
+)
+
+# Generate synthetic dataset
+generator.generate()
+
+# Access generated data
+print(generator.data.head())
+```
+  This example first creates a generator with 1,000 applicants, five continuous and two binary features, and a bad rate of 30%. After calling .generate(), the simulated dataset is accessible via generator.data. In practice, this dataset serves as the starting point for experiments and is later passed into the acceptance loop, which splits it into accepts, rejects, and a holdout sample for unbiased evaluation.
+
+- **acceptance_loop.py**:
+This module implements the core **simulation framework** for both Experiment I and II from the paper. It is designed to be used in conjunction with our data generator **`data_generator_simplified.py`**, which provides the necessary simulation data.
+
+  The module's main function is to simulate the credit scoring process over multiple iterations, using data for both accepted and rejected applicants (`accepts` and `rejects`) to train and evaluate models.
+  - **Experiment I**: In each iteration, an accepts-based scorecard is evaluated using three distinct strategies: **accepts-based evaluation**, **oracle evaluation**, and **Bayesian evaluation**. The evaluation results are saved in `eval_stats`.
+  - **Experiment II**: In each iteration, three different scorecards are trained and evaluated: an **accepts-based scorecard**, an **oracle-based scorecard**, and a **corrected scorecard**. The evaluation metrics for these models are saved in `stats_list`.
+
+  The module also outputs the final predictions and the full set of collected `accepts` and `rejects` after all iterations are complete.
+
+  In the following example, `init_accepts`, `init_rejects`, and `holdout_population` are generated by **`data_generator_simplified.py`**. The full data preparation process is detailed in our main script **`code_01_simulation_study.py`**.
+
+```python
+from data_generation_simplified import DataGenerator
+from acceptance_loop import AcceptanceLoop
+
+# Define a data generator to create a population for the simulation
+res = data.DataGenerator(
+  n = 100,
+  bad_ratio = 0.7,
+  k_con = 2,
+  k_bin = 0,
+  con_nonlinear = 0,
+  con_mean_bad_dif = [2,1],
+  con_var_bad_dif = 0.5,
+  covars = [[1, 0.2, 0.2, 1], [1, -0.2, -0.2, 1]],
+  seed = 77,
+  verbose = True
+  )
+
+# Initialize acceptance loop
+acceptance_loop = AcceptanceLoop(
+  n_iter = 300,                          # iteration times
+  current_accepts = init_accepts,        # initial accepts is the current accepts in the first iteration
+  current_rejects = init_rejects,        # initial rejects is the current rejects in the first iteration
+  holdout = holdout_population,          # holdout set used as evaluation set in every iteration
+  res = res,                             # res is a hyper parameter set of data generator
+  top_percent = 0.2                      # top_percent is the accept ratio in population
+  )
+
+# Implement the acceptance loop and access the results of two experiments
+stats_list, holdout_accept_preds_bad, basl_preds_bad, oracel_preds_bad, current_accepts, current_rejects = acceptance_loop.run()
+print(f"The results for Experiment I are: \n {acceptance_loop.eval_stats_list}")
+print(f"The results for Experiment II are: \n {stats_list}")
+print(f"After {acceptance_loop.n_iter} times iteration, {len(acceptance_loop.current_accepts)} accepts and {len(acceptance_loop.current_rejects)} are collected.")
+```
 - **code_02_simulation_results.py**
 
 - **benchmark_experiment.py**  
