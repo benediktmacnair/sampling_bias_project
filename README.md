@@ -66,9 +66,9 @@ print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
 ```
 
 - **reject_inference.py**  
-  Contains an abstract `RejectInference` class, from which several concrete model subclasses are derived.  
-  It houses the Bias-Aware Self-Learning (BASL) method along with benchmark models like Label-All-Rejects-as-Bad, Heckman Two-Stage, Heckman Bivariate, and Reweighting.  
-  Each model inherits a standardized `fit()`, `predict()`, and `predict_proba()` method.
+  This file contains the core building blocks for all reject inference models used in the project. At its center is the abstract RejectInference class, which sets a simple standard: every model needs to implement fit(), predict(), and predict_proba(). This makes sure that no matter which method you’re testing, it can plug into the benchmark experiments without extra adjustments.
+
+    On top of this base, the file implements both the proposed Bias-Aware Self-Learning (BASL) method and three benchmark models: Label-All-Rejects-as-Bad (LARAB), Reweighting, and the Heckman Two-Stage model. Each subclass handles rejected applicants differently, but they all follow the same interface, so they can be swapped in and out     easily during experiments.
 
 - **data_generator.py**:
 The Data Generator creates synthetic applicant datasets for credit scoring research with controlled bias. It simulates continuous and binary features, assigns labels (GOOD/BAD) according to a specified bad rate, and allows adding noise and nonlinear transformations.
