@@ -215,9 +215,9 @@ This project was completed by our team. The following are all the members and th
 
 * **Benchmark Models:** Implemented the benchmark models LabelAllRejectsAsBad and Reweighting in `reject_inference.py`, ensuring alignment with the theoretical formulations and preparing them for empirical comparison against BASL and Heckman.
 
-* **Experiment Integration:** Extended and completed `benchmark_experiment.py` to support the instantiation and evaluation of BASL and benchmark models.
+* **Experiment Integration:** Extended and completed `benchmark_experiment.py` by including LabelAllRejectsAsBad and Reweighting to support the instantiation and evaluation of BASL together with these benchmark models.
 
-* **Code Review & Refinement:** Critically evaluated existing implementations for consistency with the paper’s methodology and refined them to follow OOP best practices and reproducability.
+* **Code Review & Refinement:** Reviewed existing implementations for consistency with the paper’s methodology and refined them to follow OOP best practices and reproducability.
 
 * **Presentations:** Prepared both draft and final presentations from scratch. Delivered the pitch and final presentations.
 
