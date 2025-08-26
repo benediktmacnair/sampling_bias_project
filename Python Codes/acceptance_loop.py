@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from data_generation_simplified import DataGenerator
+from data_generator import DataGenerator
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from reject_inference import RejectInference, BiasAwareSelfLearning

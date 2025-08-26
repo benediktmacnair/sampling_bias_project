@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import data_generation_simplified as data
+import data_generator as data
 from reject_inference import RejectInference, BiasAwareSelfLearning, HeckmanTwoStage, LabelAllRejectsAsBad, Reweighting
 from Evaluation import Metric, AUC, BS, PAUC, ABR, Evaluation, bayesianMetric
 from sklearn.linear_model import LogisticRegression

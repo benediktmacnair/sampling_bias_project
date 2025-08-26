@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import data_generation_simplified as data
+import data_generator as data
 from acceptance_loop import AcceptanceLoop
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import train_test_split
