@@ -192,6 +192,7 @@ The Benchmark Experiment script ties the whole framework together and runs the m
 
 - Figure **2.c** in the main paper cannot be replicated with the meta-parameters given in Appendix E.  
   Even when running the original R code with those parameters, the results deviate from the figure reported in the paper.
+-`HeckmanTwoStage` model performs poorly on our synthetic data primarily because of the high correlations present among some generated features. The high correlations among some features make it difficult for the model to isolate the true effect of each variable. This leads to unstable predictions and unreliable results. The issue is especially pronounced in multi-stage models, where errors in the initial stage can cascade and negatively affect the final outcome.
 
 
 ## Contribution
@@ -203,6 +204,11 @@ This project was completed by our team. The following are all the members and th
 * **Integrated Functions**: Coded the evaluation part within `acceptance_loop`, the scorecard selection and visualization components in `code_01_simulation_study.py`.
 * **Reviewing**: Reviewed BASL part in `reject_inference.py`.
 
+**Wai Yung LAU**:
+* **Code Development and Architecture:** Architected the class structure for the reject inference module. Developed and validated the `BASL` and `HeckmanTwoStage` models within `reject_inference.py`. Constructed the core code framework for `benchmark_experiment.py`, implementing the benchmark training for `BASL` and `HeckmanTwoStage`, and evaluation pipelines.
+* **Code Reviewing / Debug:** Conducted a code review and debugging of `acceptance_loop.py`. Reviewed the `LabelAllRejectsAsBad` model in `reject_inference.py`.
+* **Presentation:** Prepared and presented slides on the reject inference for the final presentation. Wrote and presented the project background for the first presentation. Also prepared a script for the team.
+* **Documentation:** Prepared the initial draft of the project's `README.md`, detailing the project introduction, environment requirements, an overview of `reject_inference.py`, and constraints.
 
 
 ## Citation
