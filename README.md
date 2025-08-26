@@ -210,6 +210,19 @@ This project was completed by our team. The following are all the members and th
 * **Presentation:** Prepared and presented slides on the reject inference for the final presentation. Wrote and presented the project background for the first presentation. Also prepared a script for the team.
 * **Documentation:** Prepared the initial draft of the project's `README.md`, detailing the project introduction, environment requirements, an overview of `reject_inference.py`, and constraints.
 
+**Muhammad Mujtaba Sarwar**:
+* **BASL Framework Implementation:** Co-developed the full code for the Bias-Aware Self-Labeling (BASL) framework, translating the methodology from the paper and online appendix into a reproducible and well-documented Python implementation.
+
+* **Benchmark Models:** Implemented the benchmark models LabelAllRejectsAsBad and Reweighting in `reject_inference.py`, ensuring alignment with the theoretical formulations and preparing them for empirical comparison against BASL and Heckman.
+
+* **Experiment Integration:** Extended and completed `benchmark_experiment.py` to support the instantiation and evaluation of BASL and benchmark models.
+
+* **Code Review & Refinement:** Critically evaluated existing implementations for consistency with the paper’s methodology and refined them to follow OOP best practices and reproducability.
+
+* **Presentations:** Prepared both draft and final presentations from scratch. Delivered the pitch and final presentations.
+
+* **Documentation:** Contributed to project documentation, specifically `data_generator.py`, `reject_inference.py` and `benchmark_experiment.py` refining the project `README.md`.
+
 
 ## Citation
 
