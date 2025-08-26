@@ -192,7 +192,7 @@ The Benchmark Experiment script ties the whole framework together and runs the m
 
 - Figure **2.c** in the main paper cannot be replicated with the meta-parameters given in Appendix E.  
   Even when running the original R code with those parameters, the results deviate from the figure reported in the paper.
--`HeckmanTwoStage` model performs poorly on our synthetic data primarily because of the high correlations present among some generated features. The high correlations among some features make it difficult for the model to isolate the true effect of each variable. This leads to unstable predictions and unreliable results. The issue is especially pronounced in multi-stage models, where errors in the initial stage can cascade and negatively affect the final outcome.
+- `HeckmanTwoStage` model performs poorly on our synthetic data primarily because of the high correlations present among some generated features. The high correlations among some features make it difficult for the model to isolate the true effect of each variable. This leads to unstable predictions and unreliable results. The issue is especially pronounced in multi-stage models, where errors in the initial stage can cascade and negatively affect the final outcome.
 
 
 ## Contribution
