@@ -200,9 +200,10 @@ The Benchmark Experiment script ties the whole framework together and runs the m
 This project was completed by our team. The following are all the members and their key contributions:
 
 **Yuanyuan Li**:
-* **Evaluation & Selection Modules**: Developed and tested the core scripts for `Evaluation.py` and `scorecard_selection.py`.
-* **Integrated Functions**: Coded the evaluation part within `acceptance_loop`, the scorecard selection and visualization components in `code_01_simulation_study.py`.
-* **Reviewing**: Reviewed BASL part in `reject_inference.py`.
+* **Code Development**: Developed and tested the whole scripts for `Evaluation.py` and `scorecard_selection.py`. Coded the evaluation part within `acceptance_loop`, the scorecard selection and visualization components in `code_01_simulation_study.py`.
+* **Code Reviewing**: Reviewed BASL part in `reject_inference.py` and debugged `acceptance_loop.py` to work with basl and be.
+* **Documentation**: Re-structure `README.md`. Completed project introduction. Wrote code examples for `Evaluation.py`, `acceptance_loop.py`, `code_02_simulation_study.py`, and `scorecard_selection.py`.
+* **Presentation**: Prepared and presented evaluation part in pitch talk and final presentation.
 
 **Wai Yung LAU**:
 * **Code Development and Architecture:** Architected the class structure for the reject inference module. Developed and validated the `BASL` and `HeckmanTwoStage` models within `reject_inference.py`. Constructed the core code framework for `benchmark_experiment.py`, implementing the benchmark training for `BASL` and `HeckmanTwoStage`, and evaluation pipelines.
