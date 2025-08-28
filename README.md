@@ -212,11 +212,16 @@ The Benchmark Experiment script ties the whole framework together and runs the m
 
 This project was completed by our team. The following are all the members and their key contributions:
 
+**Benedikt Macnair Lummawie**:
+* **Code Develoment**: Developed and implemented modules `data_generator.py` and `code_02_simulation_study.py`; designed and contributed to main structure of `acceptance_loop.py` and main script `code_01_simulation_study.py`.
+* **Code Debugging/Reviewing**: Tested and debugged `acceptance_loop.py` and `data_generator.py`.
+* **Documentation and Presentation**: Reviewed documentation for `data_generator.py` and `acceptance_loop.py`; presented data generator and acceptance loop components in both the pitch talk and final presentation.
+
 **Yuanyuan Li**:
-* **Code Development**: Developed and tested the whole module for `Evaluation.py` and `scorecard_selection.py`. Integrated the evaluation part into `acceptance_loop`. Completed main script `code_01_simulation_study.py` with the scorecard selection and visualization components.
-* **Code Reviewing**: Reviewed the `BASL` module in `reject_inference.py` and debugged critical sections of `acceptance_loop.py` to ensure the overall system's functionality.
-* **Documentation**: Re-structure `README.md`. Completed project introduction. Wrote code examples for `Evaluation.py`, `acceptance_loop.py`, `code_02_simulation_study.py`, `scorecard_selection.py`, and `code_01_simulation_study.py`.
-* **Presentation**: Prepared and presented evaluation part in pitch talk and final presentation.
+* **Code Development**: Independently developed and tested the module `Evaluation.py` and `scorecard_selection.py`. Integrated the evaluation part into `acceptance_loop.py`. Developed main script `code_01_simulation_study.py` including scorecard selection and visualization components. 
+* **Code Reviewing**: Reviewed the `BASL` module in `reject_inference.py` and debugged `acceptance_loop.py` to ensure the overall system functionality. 
+* **Documentation**: Re-structured `README.md`. Completed project introduction and prepared code examples for `Evaluation.py`, `acceptance_loop.py`, `code_02_simulation_study.py`, `scorecard_selection.py`, and `code_01_simulation_study.py`. 
+* **Research & Presentation**: Interpreted the reference paper, created process flow diagrams to explain the proposed algorithms, and presented the evaluation part in both the pitch talk and the final presentation.
 
 **Wai Yung LAU**:
 * **Code Development and Architecture:** Architected the class structure for the reject inference module. Developed and validated the `BASL` and `HeckmanTwoStage` models within `reject_inference.py`. Constructed the core code framework for `benchmark_experiment.py`, implementing the benchmark training for `BASL` and `HeckmanTwoStage`, and evaluation pipelines.
