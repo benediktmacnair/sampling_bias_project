@@ -230,13 +230,13 @@ This project was completed by our team. The following are all the members and th
 * **Documentation:** Prepared the initial draft of the project's `README.md`, detailing the project introduction, environment requirements, an overview of `reject_inference.py`, and constraints.
 
 **Muhammad Mujtaba Sarwar**:
-* **BASL Framework Implementation:** Co-developed the full code for the Bias-Aware Self-Labeling (BASL) framework, translating the methodology from the paper and online appendix into a reproducible and well-documented Python implementation.
+* **Code Development:** Implemented the benchmark models LabelAllRejectsAsBad and Reweighting in `reject_inference.py`, ensuring alignment with the theoretical formulations and preparing them for empirical comparison against BASL and Heckman.
 
-* **Benchmark Models:** Implemented the benchmark models LabelAllRejectsAsBad and Reweighting in `reject_inference.py`, ensuring alignment with the theoretical formulations and preparing them for empirical comparison against BASL and Heckman.
+* **BASL Framework Review & Refinement:** Coducted an extensive code review of `reject_inference.py`, specifically the code for Bias-Aware Self-Labeling (BASL) framework, translating the methodology from the paper and online appendix into a reproducible and well-documented Python implementation.
 
-* **Experiment Integration:** Extended and completed `benchmark_experiment.py` by including LabelAllRejectsAsBad and Reweighting to support the instantiation and evaluation of BASL together with these benchmark models.
+* **Experiment Integration:** Extended, debugged, and completed `benchmark_experiment.py` by including LabelAllRejectsAsBad and Reweighting to support the instantiation and evaluation of BASL together with these models.
 
-* **Code Review & Refinement:** Reviewed existing implementations for consistency with the paper’s methodology and refined them to follow OOP best practices and reproducability.
+* **Final Review & Testing:** Conducted a final review and testing of all workpackages and Python codes, ensuring everything runs and fucntions smoothly.
 
 * **Presentations:** Prepared both draft and final presentations from scratch. Delivered the pitch and final presentations.
 
