@@ -26,7 +26,7 @@ res.generate()
 # extract initial population
 init_population = res.data
 init_population.drop(columns=['B1'], inplace=True)
-# FIX: Assign the mapped values back to the DataFrame
+# Assign the mapped values back to the DataFrame
 init_population['BAD'] = init_population['BAD'].map({'BAD':1, 'GOOD':0})
 
 ## Classification of initial population into accepts and rejects
@@ -37,17 +37,17 @@ accepts_ind = init_population.index[init_population['X1'] >= init_population['X1
 final_accepts = init_population.loc[accepts_ind].copy()
 final_rejects = init_population.drop(accepts_ind).copy()
 
-# FIX: Combine the accepts and rejects data to fit the scaler once
+# Combine the accepts and rejects data to fit the scaler once
 all_training_x = pd.concat([final_accepts.drop(columns=["BAD"]), 
                            final_rejects.drop(columns=["BAD"])], 
                            ignore_index=True)
 
 # Scaling the input features
 scaler = StandardScaler()
-# FIX: Fit the scaler on the entire training population
+# Fit the scaler on the entire training population
 scaler.fit(all_training_x)
 
-# FIX: Use the fitted scaler to transform both accepts and rejects data
+# Use the fitted scaler to transform both accepts and rejects data
 accepts_x_np = scaler.transform(final_accepts.drop(columns=["BAD"]))
 rejects_x_np = scaler.transform(final_rejects.drop(columns=["BAD"]))
 
@@ -110,7 +110,7 @@ heckman_selection_features_idx = [all_cols.index(f) for f in heckman_selection_f
 heckman_outcome_features_idx = [all_cols.index(f) for f in heckman_outcome_features]
 
 # ============================================================
-# Benchmark Models: LABAR + Reweighting + Heckman Model + BASL
+# Training of BASL and Benchmark Models: LABAR + Reweighting + Heckman Model 
 # ============================================================
 
 # Instantiate and fit LABAR
