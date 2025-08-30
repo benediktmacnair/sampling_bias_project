@@ -1034,12 +1034,32 @@ class Reweighting(RejectInference):
 
 class HeckmanTwoStage(RejectInference):
     """
-    Implements the two-stage Heckman correction model.
-    
-    This class has been updated to use numeric indices for feature selection, 
-    consistent with the HeckmanBivariate model. The Probit fitting has also 
-    been updated to handle ConvergenceWarnings.
+    Implements the two-stage Heckman correction model for handling sample
+    selection bias in binary classification problems.
+
+    The model works in two stages:
+    1. A selection model (Probit, Logistic Regression, or XGBoost) is fit on the
+       entire population (accepted and rejected applications) to predict the
+       probability of acceptance.
+    2. An outcome model (Probit or XGBoost) is fit on only the accepted
+       population. This model includes an additional variable, the Inverse Mills Ratio (IMR),
+       which corrects for the sample selection bias. 
+       
+    Args:
+    selection_classifier (str): The classifier to use for the first stage
+        (selection model). Supported options: 'Probit', 'LogisticRegression', 'XGB'.
+        Defaults to 'Probit'.
+    outcome_classifier (str): The classifier to use for the second stage
+        (outcome model). Supported options: 'Probit', 'XGB'.
+        Defaults to 'XGB'.
+    selection_features_idx (Optional[List[int]]): A list of integer indices
+        of the features to be used in the selection model. If None, all
+        features are used. Defaults to None.
+    outcome_features_idx (Optional[List[int]]): A list of integer indices
+        of the features to be used in the outcome model. If None, all
+        features are used. Defaults to None.
     """
+    
     def __init__(self,
                  selection_classifier: str = 'Probit',
                  outcome_classifier: str = 'XGB',
@@ -1082,11 +1102,9 @@ class HeckmanTwoStage(RejectInference):
 
         if self.selection_classifier == 'Probit':
             X_selection_sm = sm.add_constant(X_selection, prepend=False)
-            # FIX: Use warnings.catch_warnings to suppress the specific RuntimeWarning
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 self.selection_model = sm.Probit(y_selection, X_selection_sm).fit(disp=False, maxiter=5000)
-        # NEW: Add a regularized Logistic Regression option
         elif self.selection_classifier == 'LogisticRegression':
             self.selection_model = LogisticRegression(solver='liblinear', penalty='l2', max_iter=1000, random_state=42)
             self.selection_model.fit(X_selection.values, y_selection)
@@ -1102,16 +1120,14 @@ class HeckmanTwoStage(RejectInference):
         # Stage 2: Outcome Equation (Prob(Bad) | Accepted)
         print("Stage 2: Fitting outcome model on accepted population...")
         
-        # FIX: Correct the logic for choosing the correct prediction method
         if self.selection_classifier == 'Probit':
             selection_preds = self.selection_model.predict(sm.add_constant(accepts_x.iloc[:, self.selection_features_idx], prepend=False))
-        # NEW: Add logic for the new LogisticRegression classifier
         elif self.selection_classifier == 'LogisticRegression':
             selection_preds = self.selection_model.predict_proba(accepts_x.iloc[:, self.selection_features_idx].values)[:, 1]
         elif self.selection_classifier == 'XGB':
             selection_preds = self.selection_model.predict_proba(accepts_x.iloc[:, self.selection_features_idx].values)[:, 1]
         
-        # NEW: Clip the selection predictions with a larger value (1e-6 instead of 1e-15) to prevent numerical instability issues
+        #Clip the selection predictions with a larger value to prevent numerical instability issues
         selection_preds_clipped = np.clip(selection_preds, 1e-6, 1 - 1e-6)
         z_values = norm.ppf(selection_preds_clipped)
         imr_values = norm.pdf(z_values) / norm.cdf(z_values)
@@ -1122,7 +1138,6 @@ class HeckmanTwoStage(RejectInference):
 
         if self.outcome_classifier == 'Probit':
             X_outcome_sm = sm.add_constant(X_outcome_with_imr, prepend=False)
-            # FIX: Use warnings.catch_warnings to suppress the specific RuntimeWarning
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RuntimeWarning)
                 self.outcome_model = sm.Probit(accepts_y, X_outcome_sm).fit(disp=False, maxiter=5000)
@@ -1142,10 +1157,8 @@ class HeckmanTwoStage(RejectInference):
         if self.selection_model is None or self.outcome_model is None:
             raise NotFittedError("This model instance is not fitted yet. Call 'fit' with appropriate arguments before using this estimator.")
         
-        # FIX: Ensure the input X is a DataFrame to avoid iloc errors
+        # Ensure the input X is a DataFrame to avoid iloc errors
         if not isinstance(X, pd.DataFrame):
-            # If it's not a DataFrame, assume it's a numpy array and convert it
-            # using the feature names stored during fitting.
             X = pd.DataFrame(X, columns=self.feature_columns)
 
         # Use .iloc to select features by their integer index
@@ -1155,13 +1168,12 @@ class HeckmanTwoStage(RejectInference):
         # Stage 1: Predict selection probabilities
         if self.selection_classifier == 'Probit':
             selection_preds = self.selection_model.predict(sm.add_constant(X_selection_df, prepend=False))
-        # NEW: Add logic for the new LogisticRegression classifier
         elif self.selection_classifier == 'LogisticRegression':
             selection_preds = self.selection_model.predict_proba(X_selection_df.values)[:, 1]
         elif self.selection_classifier == 'XGB':
             selection_preds = self.selection_model.predict_proba(X_selection_df.values)[:, 1]
 
-        # NEW: Clip the selection predictions with a larger value (1e-6 instead of 1e-15) to prevent numerical instability issues
+        # Clip the selection predictions with a larger value to prevent numerical instability issues
         selection_preds_clipped = np.clip(selection_preds, 1e-6, 1 - 1e-6)
         z_values = norm.ppf(selection_preds_clipped)
         imr_values = norm.pdf(z_values) / norm.cdf(z_values)
