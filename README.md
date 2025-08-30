@@ -198,9 +198,9 @@ After running acceptance loop, we have distribution of prediction and impact of 
 ![Impact of Bias on Training](results/Impact%20of%20Bias%20on%20Training.png)
 
 - **benchmark_experiment.py**:
-In this file, a Benchmark Experiment was conducted with synthetic data to compare BASL performance against benchmark models. It begins by generating a synthetic applicant population with the Data Generator. Using a simple business rule, this population is then split into accepted and rejected applicants, while a separate holdout sample is created to serve as an unbiased reference point. Then we performed feature selection for each stage of heckman model using permutation importance.
-  Once the datasets are ready, several benchmark models are trained — including Label-All-Rejects-as-Bad (LARAB), Reweighting, and Heckman Two-Stage — alongside the proposed Bias-Aware Self-Learning (BASL) method. Each approach is fit on the accepts + rejects data and then tested on the unbiased holdout set. Model performance is measured using the metrics implemented in evaluation.py: AUC, Brier Score (BS), Partial AUC (PAUC), and Acceptance-Based Risk (ABR). Results are collected in a pandas DataFrame and printed to the console
-  <img width="709" height="127" alt="Benchmark result comparison " src="https://github.com/user-attachments/assets/b3dd3d92-78d0-494e-a16d-b961adfe8672" />
+In this file, a Benchmark Experiment was conducted with synthetic data to compare BASL performance against benchmark models. It begins by generating a synthetic applicant population with the Data Generator. Using a simple business rule, this population is then split into accepted and rejected applicants, while a separate holdout sample is created to serve as an unbiased reference point. Then we performed feature selection for each stage of heckman model using permutation importance. Once the datasets are ready, several benchmark models are trained — including Label-All-Rejects-as-Bad (LARAB), Reweighting, and Heckman Two-Stage — alongside the proposed Bias-Aware Self-Learning (BASL) method. Each approach is fit on the accepts + rejects data and then tested on the unbiased holdout set. Model performance is measured using the metrics implemented in evaluation.py: AUC, Brier Score (BS), Partial AUC (PAUC), and Acceptance-Based Risk (ABR).
+
+   <img width="709" height="127" alt="Benchmark result comparison " src="https://github.com/user-attachments/assets/b3dd3d92-78d0-494e-a16d-b961adfe8672" />
 
 
 
