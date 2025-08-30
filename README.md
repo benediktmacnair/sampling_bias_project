@@ -196,9 +196,10 @@ The Benchmark Experiment script ties the whole framework together and runs the m
 This project was completed by our team. The following are all the members and their key contributions:
 
 **Benedikt Macnair Lummawie**:
-* **Code Develoment**: Developed and implemented modules `data_generator.py` and `code_02_simulation_study.py`; designed and contributed to main structure of `acceptance_loop.py` and main script `code_01_simulation_study.py`.
-* **Code Debugging/Reviewing**: Tested and debugged `acceptance_loop.py` and `data_generator.py`.
-* **Documentation and Presentation**: Reviewed documentation for `data_generator.py` and `acceptance_loop.py`; presented data generator and acceptance loop components in both the pitch talk and final presentation.
+* **Code Development**: responsible for the development of the `data_generator.py` module, which designed and implemented to handle a various user inputs through flexible functionalities and tailored workarounds. In addition, I led the modularization of key components for `code_01_simulation_study.py`, separating the `acceptance_loop.py` and `scorecard_selection.py` for easier and pararell development, debug and implementation. Independently planned and implemented both the `acceptance_loop.py` logic and the `code_02_simulation_results.py` module, contributing significantly to the structure, clarity, and reproducibility of the simulation study.
+* **Code Reviewing**: Reviewed, debugged, and continuously updated the structure of the above mentioned modules based on feedback from other collaborators to ensure alignment with the architecture of other modules.
+* **Documentation**: Reviewed documentation for `data_generator.py` and `acceptance_loop.py`; presented data generator and acceptance loop components in both the pitch talk and final presentation.
+* **Presentation**: Prepared both draft and final presentations. Delivered the pitch and final presentations.
 
 **Yuanyuan Li**:
 * **Code Development**: Independently developed and tested the module `Evaluation.py` and `scorecard_selection.py`. Integrated the evaluation part into `acceptance_loop.py`. Developed main script `code_01_simulation_study.py` including scorecard selection and visualization components. 
