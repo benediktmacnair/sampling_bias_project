@@ -49,9 +49,29 @@ print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
 ```
 
 - **reject_inference.py**  
-  This file contains the core building blocks for all reject inference models used in the project. At its center is the abstract RejectInference class, which sets a simple standard: every model needs to implement fit(), predict(), and predict_proba(). This makes sure that no matter which method you’re testing, it can plug into the benchmark experiments without extra adjustments.
+This file contains all reject inference models used in the project, including Bias-Aware Self-Learning (BASL) method along with 3 benchmark models: Label-All-Rejects-as-Bad, Heckman Two-Stage and Reweighting. Each model inherits a standardized fit(), predict(), and predict_proba() method from the abstract RejectInference class. The implementation details can be found in `benchmark_experiment.py`
 
-    On top of this base, the file implements both the proposed Bias-Aware Self-Learning (BASL) method and three benchmark models: Label-All-Rejects-as-Bad (LARAB), Reweighting, and the Heckman Two-Stage model. Each subclass handles rejected applicants differently, but they all follow the same interface, so they can be swapped in and out easily during experiments.
+```python
+from reject_inference import RejectInference, BiasAwareSelfLearning, HeckmanTwoStage, LabelAllRejectsAsBad, Reweighting
+
+basl_model = BiasAwareSelfLearning(strong_estimator = LogisticRegression(penalty='l1',solver='liblinear',max_iter=10000, random_state=42),
+                            weak_learner_estimator = LogisticRegression(penalty='l1',solver='liblinear',max_iter=10000, random_state=42),
+                            filtering_beta = [0.1, 0.9],
+                            holdout_percent = 0.1,
+                            labeling_percent = 0.2,
+                            sampling_percent = 0.5,
+                            multiplier = 4,
+                            max_iterations = 5,
+                            early_stop = True, 
+                            silent=True)
+
+basl_model.fit(accepts_x= accepts_x,
+            accepts_y= final_accepts["BAD"],
+            rejects_x= rejects_x)
+
+basl_pred_proba = basl_model.predict_proba(x_holdout)
+basl_pred = basl_model.predict(x_holdout)
+```
 
 - **data_generator.py**:
 The Data Generator creates synthetic applicant datasets for credit scoring research with controlled bias. It simulates continuous and binary features, assigns labels (GOOD/BAD) according to a specified bad rate, and allows adding noise and nonlinear transformations.
@@ -178,11 +198,14 @@ After running acceptance loop, we have distribution of prediction and impact of 
 ![Impact of Bias on Training](results/Impact%20of%20Bias%20on%20Training.png)
 
 - **benchmark_experiment.py**:
-The Benchmark Experiment script ties the whole framework together and runs the main simulation used in our study. It begins by generating a synthetic applicant population with the Data Generator. Using a simple business rule, this population is then split into accepted and rejected applicants, while a separate holdout sample is created to serve as an unbiased reference point.
+In this file, a Benchmark Experiment was conducted with synthetic data to compare BASL performance against benchmark models. It begins by generating a synthetic applicant population with the Data Generator. Using a simple business rule, this population is then split into accepted and rejected applicants, while a separate holdout sample is created to serve as an unbiased reference point. Then we performed feature selection for each stage of heckman model using permutation importance.
 
-    From there, the script simulates the selective lending process and prepares the data for model training. For the Heckman Two-Stage model, it also performs a feature selection step to separate variables relevant for the acceptance decision from those driving default outcomes. Once the datasets are ready, several benchmark models are     trained — including Label-All-Rejects-as-Bad (LARAB), Reweighting, and Heckman Two-Stage — alongside the proposed Bias-Aware Self-Learning (BASL) method. Each approach is fit on the biased training data (accepts + rejects) and then tested on the unbiased holdout set.
+Once the datasets are ready, several benchmark models are trained — including Label-All-Rejects-as-Bad (LARAB), Reweighting, and Heckman Two-Stage — alongside the proposed Bias-Aware Self-Learning (BASL) method. Each approach is fit on the accepts + rejects data and then tested on the unbiased holdout set.
 
-    Model performance is measured using the metrics implemented in evaluation.py: AUC, Brier Score (BS), Partial AUC (PAUC), and Acceptance-Based Risk (ABR). Results are collected in a pandas DataFrame and printed to the console, making it easy to directly compare how well BASL performs relative to standard reject inference techniques     under the same simulation settings.
+Model performance is measured using the metrics implemented in evaluation.py: AUC, Brier Score (BS), Partial AUC (PAUC), and Acceptance-Based Risk (ABR). Results are collected in a pandas DataFrame and printed to the console, making it easy to directly compare how well BASL performs relative to standard reject inference techniques under the same simulation settings.
+<img width="709" height="127" alt="Benchmark result comparison " src="https://github.com/user-attachments/assets/b3dd3d92-78d0-494e-a16d-b961adfe8672" />
+
+
 
 ## Constraint
 
