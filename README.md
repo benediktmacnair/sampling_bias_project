@@ -52,7 +52,7 @@ print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
 This file contains all reject inference models used in the project, including Bias-Aware Self-Learning (BASL) method along with 3 benchmark models: Label-All-Rejects-as-Bad, Heckman Two-Stage and Reweighting. Each model inherits a standardized fit(), predict(), and predict_proba() method from the abstract RejectInference class. The implementation details can be found in `benchmark_experiment.py`
 
 ```python
-from reject_inference import RejectInference, BiasAwareSelfLearning, HeckmanTwoStage, LabelAllRejectsAsBad, Reweighting
+from reject_inference import RejectInference, BiasAwareSelfLearning
 
 basl_model = BiasAwareSelfLearning(strong_estimator = LogisticRegression(penalty='l1',solver='liblinear',max_iter=10000, random_state=42),
                             weak_learner_estimator = LogisticRegression(penalty='l1',solver='liblinear',max_iter=10000, random_state=42),
