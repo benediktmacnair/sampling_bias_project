@@ -6,17 +6,9 @@ This repository contains the code and resources for a project developed as part 
 
 The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecard training and a **Bayesian Evaluation (BE)** strategy for scorecard evaluation in sampling bias situation. A simulation framework is built to compare these two methods with benchmarks called **acceptance loop**. Following this main logic, we structure our repository as follow:
 
-- `original R codes`: contains original R codes in of the paper
-- `Python codes`:
-    - **data_generator.py**: simulation data generator.
-    - **reject_inference.py**: code for BASL and benchmark methods.
-    - **Evaluation.py**: code for BE and evaluation metrics callable by benchmarks precessed in experiments.
-    - **acceptance_loop**: simulation framework for experiments, which comparing BASL and BE with benchmarks in simulated credit scoring situation.
-    - **scorecard_selection.py**: implement a evaluation loop to comparing scorecards based on xgboots.
-    - **code_01_simulation_study.py**: our **main script** to implement experiments and generate plots.
-    - **code_02_simulation_study.py**: distribution plots generator.
-    - **benchmark_experiment.py**: conducts a benchmark experiment with synthetic data to compare BASL performance against benchmark models.
-- `results`: contains all plots we generated from Python codes.
+- `original R codes`: contains original R codes implemented in the paper
+- `Python codes`: contains all Python code scripts we implemented and requirements.txt file.
+- `results`: contains results we generated from Python codes.
 - `README.md`
 
 ## How to run our code?
@@ -25,18 +17,9 @@ The paper developed a **bias-aware self-labeling (BASL)** algorithm for scorecar
 
 - **Python Version**: Python 3.8 or higher is required. It is strongly recommended to use the version specified in the project's `requirements.txt` or documentation for compatibility.  
 - **Operating System**: The project is designed to be cross-platform and should work on Windows and macOS.  
-- **Core Libraries**: The project relies on standard Python libraries for data manipulation, numerical operations, machine learning, and visualization. These are listed in the `requirements.txt` file and include packages such as:
-  - `pandas`
-  - `numpy`
-  - `scikit-learn`
-  - `xgboost`
-  - `scipy`
-  - `statsmodels`
-  - `matplotlib`
-  - `seaborn`
+- **Core Libraries**: The project relies on standard Python libraries for data manipulation, numerical operations, machine learning, and visualization. These are listed in the `requirements.txt` file.
 
 ### Code examples for running our Python codes:
-The following files contain the implementation of the key modules and a comparison of the results from various models:
 
 - **Evaluation.py**:  
 This module provides an independent implementation of the **Bayesian Evaluation strategy**, which is designed to address sampling bias in model evaluation. For example, to calculate the **AUC metric** with the Bayesian strategy in a credit scoring scenario, you can use the following code. The example below uses `y_true_acc` (true targets for accepted applicants), `y_proba_acc` (predicted probabilities for accepted applicants), and `y_proba_rej` (predicted probabilities for rejected applicants).
@@ -60,7 +43,7 @@ bm_auc = bayesianMetric(auc_metric)
 auc_bm = bm_auc.BM(y_true_acc = y_true_acc,
                    y_proba_acc = y_proba_acc,
                    y_proba_rej = y_proba_rej,
-                   rejects_prior = y_proba_rej          # Can be a single float if rejects share the same rejection probability
+                   rejects_prior = y_proba_rej          # Can be a single float if rejects share the same probability to be rejected
                    )
 print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
 ```
@@ -68,7 +51,7 @@ print(f"The AUC metric based on Bayesian Evaluation strategy is {auc_bm:.4f}.")
 - **reject_inference.py**  
   This file contains the core building blocks for all reject inference models used in the project. At its center is the abstract RejectInference class, which sets a simple standard: every model needs to implement fit(), predict(), and predict_proba(). This makes sure that no matter which method you’re testing, it can plug into the benchmark experiments without extra adjustments.
 
-    On top of this base, the file implements both the proposed Bias-Aware Self-Learning (BASL) method and three benchmark models: Label-All-Rejects-as-Bad (LARAB), Reweighting, and the Heckman Two-Stage model. Each subclass handles rejected applicants differently, but they all follow the same interface, so they can be swapped in and out     easily during experiments.
+    On top of this base, the file implements both the proposed Bias-Aware Self-Learning (BASL) method and three benchmark models: Label-All-Rejects-as-Bad (LARAB), Reweighting, and the Heckman Two-Stage model. Each subclass handles rejected applicants differently, but they all follow the same interface, so they can be swapped in and out easily during experiments.
 
 - **data_generator.py**:
 The Data Generator creates synthetic applicant datasets for credit scoring research with controlled bias. It simulates continuous and binary features, assigns labels (GOOD/BAD) according to a specified bad rate, and allows adding noise and nonlinear transformations.
@@ -93,7 +76,7 @@ generator.generate()
 # Access generated data
 print(generator.data.head())
 ```
-  This example first creates a generator with 1,000 applicants, five continuous and two binary features, and a bad rate of 30%. After calling .generate(), the simulated dataset is accessible via generator.data. In practice, this dataset serves as the starting point for experiments and is later passed into the acceptance loop, which splits it into accepts, rejects, and a holdout sample for unbiased evaluation.
+  This example first creates a generator with 1,000 applicants, five continuous and two binary features, and a bad rate of 30%. After calling .generate(), the simulated dataset is accessible via generator.data. In practice, this dataset serves as the starting point for experiments and is later passed into the acceptance loop.
 
 - **acceptance_loop.py**:
 This module implements the core **simulation framework** for both Experiment I and II from the paper. It is designed to be used in conjunction with our data generator **data_generator_simplified.py**, which provides the necessary simulation data.
@@ -149,7 +132,7 @@ This module creates an experiment for comparison of different evaluation strateg
   - **Rejects GOOD**: evaluate model on evaluation set augmented with rejects assumed to be GOOD
   - **Average**: Average of Rejects BAD and Rejects GOOD
   - **weights**: weighted metrics value based on BAD ratio of rejects in all collected samples
-In the following example, `acceptance_loop` is an implemented by our code **acceptance_loop.py**, and `holdout_population` is generated by **data_generator.py**.
+In the following example, `acceptance_loop` is implemented by our code **acceptance_loop.py**, and `holdout_population` is generated by **data_generator.py**.
 
 ```python
 from scorecard_selection import ScorecardSelector
@@ -166,7 +149,7 @@ eval_scores, models = selector.run_selection()
 ```
 
 - **code_02_simulation_study.py**:
-This module replicate all plots in R code **code_02_simulation_results.R**. It visualize all results we generated from experiments. After implementing acceptance loop and scorecard selection, the results are saved in `curr_accepts`, `curr_rejects`, `stat_list` and `eval_list`. and can be visualized as following example:
+This module replicates all plots in R code **code_02_simulation_results.R**. It visualize all results we generated from experiments. After implementing acceptance loop and scorecard selection, the results are saved in `curr_accepts`, `curr_rejects`, `stat_list` and `eval_list`. and can be visualized as following example:
 
 ```python
 from code_02_simulation_results import SimulationResults
@@ -183,7 +166,7 @@ test.be_gain()
 ```
 
 - **code_01_simulation_study.py**:
-This file serves as our main script. It contains data preparation, acceptance loop, scorecard selection, and visualization. We integrate simulation framework in this script. You can run this script and get all experiment results.
+This file serves as our **main script**. It contains data preparation, acceptance loop, scorecard selection, and visualization. We integrate simulation framework in this script. You can run this script and get all experiment results.
 
 Before acceptance loop, we describe our population data generated by data generator:
 ![Bias in Data Population](results/Bias%20in%20simulation%20data.png)
