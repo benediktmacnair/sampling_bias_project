@@ -231,7 +231,7 @@ This project was completed by our team. The following are all the members and th
 * **Code Development and Architecture:** Architected the class structure for the reject inference module. Developed and validated the `BASL` and `HeckmanTwoStage` models within `reject_inference.py`. Constructed the core code framework for `benchmark_experiment.py`, implementing the benchmark training for `BASL` and `HeckmanTwoStage`, and evaluation pipelines.
 * **Code Reviewing / Debug:** Conducted a code review and debugging of `acceptance_loop.py`. Reviewed the `LabelAllRejectsAsBad` model in `reject_inference.py`.
 * **Presentation:** Prepared and presented slides on the reject inference for the final presentation. Wrote and presented the project background for the first presentation. Also prepared a script for the team.
-* **Documentation:** Prepared the initial draft of the project's `README.md`, detailing the project introduction, environment requirements, an overview of `reject_inference.py`, and constraints.
+* **Documentation:** Prepared the initial draft of the project's `README.md`, detailing the project introduction, environment requirements, `reject_inference.py`, `benchmark_experiment.py` and constraints.
 
 **Muhammad Mujtaba Sarwar**:
 * **Code Development:** Implemented the benchmark models LabelAllRejectsAsBad and Reweighting in `reject_inference.py`, ensuring alignment with the theoretical formulations and preparing them for empirical comparison against BASL and Heckman.
