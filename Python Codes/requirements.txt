@@ -351,7 +351,7 @@ notebook_shim==0.2.4
 numba==0.60.0
 numba-cuda==0.11.0
 numexpr==2.11.0
-numpy==2.0.2
+numpy==1.26.4
 nvidia-cublas-cu12==12.6.4.1
 nvidia-cuda-cupti-cu12==12.6.80
 nvidia-cuda-nvcc-cu12==12.5.82
