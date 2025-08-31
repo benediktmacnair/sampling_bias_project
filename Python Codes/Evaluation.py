@@ -111,10 +111,6 @@ class bayesianMetric(Evaluation):
         ----------
         y_true_acc : np.ndarray
             True labels for the accepts.
-        y_pred_acc : np.ndarray
-            Predicted labels for the accepts.
-        y_pred_rej : np.ndarray
-            Predicted labels for the rejects.
         y_proba_acc : np.ndarray
             Predicted probabilities for the accepts.
         y_proba_rej : np.ndarray
