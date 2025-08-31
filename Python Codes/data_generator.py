@@ -201,12 +201,12 @@ class DataGenerator:
             else:
                 mu1 = self.replicate.con_params['means'][idx][0, :] 
                 mu2 = self.replicate.con_params['means'][idx][1, :]           
-            
-            if self.replicate is None:
-                sigma1, sigma2 = self.generate_cov(combo_vals)
+
+            if self.covars:
+                sigma1 = np.array(self.covars[0]).reshape(2,2)
+                sigma2 = np.array(self.covars[1]).reshape(2,2) 
             else:
-                sigma1 = self.replicate.con_params['covar'][idx][0]
-                sigma2 = self.replicate.con_params['covar'][idx][1]
+                sigma1, sigma2 = self.generate_cov(combo_vals)
 
             self.con_params['means'].append(np.vstack((mu1, mu2)))
             self.con_params['covar'].append([sigma1, sigma2])
@@ -243,18 +243,16 @@ class DataGenerator:
     def inject_noise_nonLinear(self):
         if self.con_nonlinear > 0 and round(self.con_nonlinear * self.k_con) > 0:
             nonlinear_vars = np.random.choice(self.k_con, size=round(self.con_nonlinear * self.k_con), replace=False)
-            nonlinear_vars = {col: f'NL{col}' for col in nonlinear_vars}
+            nonlinear_vars = {col: f'X_{col}' for col in nonlinear_vars}
             nonlinear_type = np.random.binomial(1, 0.5, size=len(nonlinear_vars)) + 1
             nonlinear_desc = ['square' if t == 1 else 'cube' for t in nonlinear_type]
             nonlinearities = ', '.join([f"{var}: {desc}" for var, desc in zip(nonlinear_vars, nonlinear_desc)])
 
             for i, var in enumerate(nonlinear_vars):
                 if nonlinear_type[i] == 1:
-                    self.data[var] = self.data[var] ** 2  # Square transformation
-                    self.data = self.data.rename(columns={var: 'squared_{}'.format(var)})
+                    self.data.iloc[:, int(var)] = self.data.iloc[:, int(var)]**2
                 elif nonlinear_type[i] == 2:
-                    self.data[var] = self.data[var] ** 3  # Cube transformation
-                    self.data = self.data.rename(columns={var: 'cubed_{}'.format(var)})
+                    self.data.iloc[:, int(var)] = self.data.iloc[:, int(var)]**3
         else:
             nonlinearities = None
 
@@ -300,12 +298,3 @@ class DataGenerator:
         self.generate_continuous(binary_df, combos)
         self.inject_noise_nonLinear()
         self.save_args()
-
-# test1 = DataGenerator(bad_ratio=0.6)
-# test1.generate()
-
-
-# # print(test1.data.head())
-
-# test2 = DataGenerator(n=10, replicate=test1)
-# test2.generate()

@@ -10,7 +10,6 @@ class Metric(ABC):
     @abstractmethod
     def __call__(self, 
                  y_true: np.ndarray, 
-                 y_pred: np.ndarray,    # keeping y_pred is to maintain flexibility for new metrics that may be added later
                  y_proba: np.ndarray, 
                  **kwargs) -> float: 
         pass
@@ -20,8 +19,7 @@ class AUC(Metric):
     Area Under the ROC Curve (AUC)
     '''
     def __call__(self, 
-                 y_true: np.ndarray, 
-                 y_pred: np.ndarray, 
+                 y_true: np.ndarray,
                  y_proba: np.ndarray, 
                  **kwargs) -> float:              
         return roc_auc_score(y_true=y_true, y_score=y_proba)
@@ -32,7 +30,6 @@ class BS(Metric):
     '''
     def __call__(self,  
                  y_true: np.ndarray, 
-                 y_pred: np.ndarray, 
                  y_proba: np.ndarray, 
                  **kwargs) -> float:
         return brier_score_loss(y_true=y_true, y_prob=y_proba) # in 1.7.1, scikit learn updates y_prob to y_proba, that's why warnings exist.
@@ -43,7 +40,6 @@ class PAUC(Metric):
     '''
     def __call__(self, 
                  y_true: np.ndarray, 
-                 y_pred: np.ndarray, 
                  y_proba: np.ndarray, 
                  **kwargs) -> float:
         fnr_range: list = kwargs.get('fnr_range', [0, 0.2])                     
@@ -60,17 +56,17 @@ class ABR(Metric):
     '''
     def __call__(self, 
                  y_true: np.ndarray, 
-                 y_pred: np.ndarray, 
                  y_proba: np.ndarray, 
                  **kwargs) -> float:
         acc_rate: list = kwargs.get('acc_rate', [0.2, 0.4])                   
         abrs = []
         alphas = np.linspace(acc_rate[0], acc_rate[1], num=10)
+        y_true_array = np.asarray(y_true)
         for alpha in alphas:
             sorted_indices = np.argsort(y_proba)
             n_selected = int(len(y_proba) * alpha)
             selected = sorted_indices[:n_selected]
-            y_acc = y_true[selected]
+            y_acc = y_true_array[selected]
             abr = np.mean(y_acc)
             abrs.append(abr)
         return np.mean(abrs)
@@ -95,15 +91,14 @@ class bayesianMetric(Evaluation):
     '''
     def __init__(self, metric:Metric):
         self.metric = metric
+        self.mean_vals_history_ = None
     
     def BM(self,
            y_true_acc: np.ndarray,
-           y_pred_acc: np.ndarray,
-           y_pred_rej: np.ndarray,
            y_proba_acc: np.ndarray,
            y_proba_rej: np.ndarray,
            rejects_prior: np.ndarray,
-           acc_rate: list,
+           acc_rate: list = [0.2, 0.4],
            seed: int = 312,
            min_iterations: int = 100,
            max_iterations: int = 10000,
@@ -153,9 +148,9 @@ class bayesianMetric(Evaluation):
             rejects_prior = np.full(len(y_pred_rej), rejects_prior)
 
         # Merge predictions of accepts and rejects
-        y_pred_combined = np.concatenate([y_pred_acc, y_pred_rej])
         y_proba_combined = np.concatenate([y_proba_acc, y_proba_rej])
         vals = []
+        mean_vals_history = []
 
         # Monte-Carlo simulation for pseudo-labels
         for n in range(max_iterations):
@@ -163,8 +158,13 @@ class bayesianMetric(Evaluation):
             y_true_combined = np.concatenate([y_true_acc, y_sim_rej])
 
             # Compute metric
-            val = self.metric(y_true_combined, y_pred_combined, y_proba_combined, fnr_range=fnr_range, acc_rate=acc_rate)
+            val = self.metric(y_true_combined, y_proba_combined, fnr_range=fnr_range, acc_rate=acc_rate)
             vals.append(val)
+
+            # Collect metric means of all previous iteration
+            current_mean = np.mean(vals)
+            mean_vals_history.append(current_mean)
+            self.mean_vals_history_ = mean_vals_history
 
             # Check stopping criterion
             if n >= min_iterations:
@@ -172,7 +172,8 @@ class bayesianMetric(Evaluation):
                 if delta < epsilon:
                     break
 
-        return np.mean(vals)
+        return current_mean
+    
 
 if __name__ == "__main__":
     np.random.seed(2025)
@@ -197,8 +198,6 @@ if __name__ == "__main__":
     # Calculate BM with different metrics
     bm_auc = bayesianMetric(metric_auc)
     bm_auc_value = bm_auc.BM(y_true_acc=y_true_acc,
-                             y_pred_acc=y_pred_acc,
-                             y_pred_rej=y_pred_rej,
                              y_proba_acc=y_proba_acc,
                              y_proba_rej=y_proba_rej,
                              rejects_prior=rejects_prior,
@@ -206,11 +205,10 @@ if __name__ == "__main__":
                              fnr_range=[0, 0.2],
                              seed=2025)
     print(bm_auc_value)
+    print(bm_auc.mean_vals_history_)
     
     bm_bs = bayesianMetric(metric_bs)
     bm_bs_value = bm_bs.BM(y_true_acc=y_true_acc,
-                           y_pred_acc=y_pred_acc,
-                           y_pred_rej=y_pred_rej,
                            y_proba_acc=y_proba_acc,
                            y_proba_rej=y_proba_rej,
                            rejects_prior=rejects_prior,
@@ -218,11 +216,10 @@ if __name__ == "__main__":
                            fnr_range=[0, 0.2],
                            seed=2025)
     print(bm_bs_value)
+    print(bm_bs.mean_vals_history_)
 
     bm_pauc = bayesianMetric(metric_pauc)
     bm_pauc_value = bm_pauc.BM(y_true_acc=y_true_acc,
-                               y_pred_acc=y_pred_acc,
-                               y_pred_rej=y_pred_rej,
                                y_proba_acc=y_proba_acc,
                                y_proba_rej=y_proba_rej,
                                rejects_prior=rejects_prior,
@@ -230,11 +227,10 @@ if __name__ == "__main__":
                                fnr_range=[0, 0.2],
                                seed=2025)
     print(bm_pauc_value)
+    print(bm_pauc.mean_vals_history_)
 
     bm_abr = bayesianMetric(metric_abr)
     bm_abr_value = bm_abr.BM(y_true_acc=y_true_acc,
-                             y_pred_acc=y_pred_acc,
-                             y_pred_rej=y_pred_rej,
                              y_proba_acc=y_proba_acc,
                              y_proba_rej=y_proba_rej,
                              rejects_prior=rejects_prior,
@@ -242,3 +238,4 @@ if __name__ == "__main__":
                              fnr_range=[0, 0.2],
                              seed=2025)
     print(bm_abr_value)
+    print(bm_abr.mean_vals_history_)
